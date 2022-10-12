@@ -236,3 +236,145 @@ COMMISSION_PCT NUMBER(2,2),
 MANAGER_ID NUMBER(6,0),
 DEPARTMENT_ID NUMBER(4,0)
  );
+ 
+ -- ************************************* Inicio de Triggers ********************--------------------------
+ /*. Crear un TRIGGER BEFORE INSERTen la tabla DEPARTMENTS que al insertar
+un departamento compruebe que el código no esté repetido y luego que si
+el LOCATION_ID es NULL actualicé el campo con el valor 1700 y si el
+MANAGER_ID es NULL l actualicé el campo con el valor 200.*/
+
+SELECT * FROM DEPARTMENTS DP;
+
+ CREATE OR REPLACE TRIGGER TRG_A_DEPARMETS
+  BEFORE INSERT
+   ON DEPARTMENTS
+   FOR EACH ROW
+
+DECLARE
+    V_IDDEPARTAMENTO NUMBER;
+    V_LOCATION_ID NUMBER;
+    V_MANAGER_ID NUMBER;
+
+BEGIN
+
+   -- Find username of person performing the INSERT into the table
+   
+    SELECT DP.DEPARTMENT_ID, DP.LOCATION_ID, DP.MANAGER_ID INTO V_IDDEPARTAMENTO ,V_LOCATION_ID , V_MANAGER_ID FROM DEPARTMENTS DP WHERE DP.DEPARTMENT_ID = :NEW.DEPARTMENT_ID;
+                
+    IF(V_IDDEPARTAMENTO IS NULL) THEN
+        
+        IF V_LOCATION_ID IS NULL THEN
+            :NEW.LOCATION_ID :=1700;
+        END IF;
+         IF V_MANAGER_ID IS NULL THEN
+            :NEW.LOCATION_ID :=200;
+        END IF;
+        
+    
+    END IF;
+   
+
+END;
+
+
+/*
+
+CREATE TABLE AUDITORIA (
+ USUARIO VARCHAR(50),
+ FECHA DATE, 
+ SALARIO_ANTIGUO NUMBER,
+SALARIO_NUEVO NUMBER);
+Crear un TRIGGER BEFORE INSERT de tipo STATEMENT,de forma que cada vez que
+se haga un INSERT en la tabla REGIONS guarde una fila en la tabla AUDITORIA con
+el usuario y la fecha en la que se ha hecho el INSERT (los campos
+SALARIO_ANTIGUO, SALARIO_NUEVO tendran un valor de 0 )
+
+
+*/
+
+ CREATE TABLE AUDITORIA (
+ USUARIO VARCHAR(50),
+ FECHA DATE, 
+ SALARIO_ANTIGUO NUMBER,
+SALARIO_NUEVO NUMBER);
+
+
+ 
+CREATE OR REPLACE TRIGGER TRG_B_REGIONS
+BEFORE INSERT
+ON REGIONS
+REFERENCING NEW AS New OLD AS Old
+FOR EACH ROW 
+DECLARE
+    V_USUARIO VARCHAR(50);
+    V_FECHA DATE;
+   
+BEGIN
+       
+                SELECT USER,SYSDATE
+                INTO V_USUARIO,V_FECHA
+                FROM DUAL;
+    INSERT INTO AUDITORIA
+    (
+        USUARIO ,
+        FECHA , 
+        SALARIO_ANTIGUO ,
+        SALARIO_NUEVO 
+    )
+   VALUES
+   (     V_USUARIO,
+         V_FECHA,
+         0,
+         0 
+    );
+     
+ END;
+ 
+ 
+ 
+ /*
+ 
+ Crear un trigger BEFORE UPDATE de la columna SALARY de la tabla
+EMPLOYEES de tipo EACH ROW.
+• Si el valor de modificación es menor que el valor actual el TRIGGER
+debe disparar un RAISE_APPLICATION_FAILURE “no se puede modificar
+el salario con un valor menor”.
+• Si el salario es mayor debemos insertar un registro en la tabla
+AUDITORIA. (Guardando user, fecha, salario_anterior, salario_nuevo)
+ */
+CREATE OR REPLACE TRIGGER TRG_B_REGIONS
+BEFORE UPDATE
+ON EMPLOYEES.SALARY
+REFERENCING NEW AS New OLD AS Old
+FOR EACH ROW 
+DECLARE
+    V_ACTUAL VARCHAR(50);
+    V_NUEVO DATE;
+   
+BEGIN
+       
+        IF(:NEW< :OLD) THEN
+             RAISE_APPLICATION_FAILURE(-20000, 'no se puede modificar el salario con un valor menor');
+        END IF;
+        IF(:NEW> :OLD) THEN
+            SELECT USER,SYSDATE
+                INTO V_USUARIO,V_FECHA
+                FROM DUAL;
+            INSERT INTO AUDITORIA
+            (
+            USUARIO ,
+            FECHA , 
+            SALARIO_ANTIGUO ,
+            SALARIO_NUEVO 
+            )
+            VALUES
+            (     V_USUARIO,
+            V_FECHA,
+            :NEW,
+            :OLD 
+            );
+        END IF;
+   
+     
+ END;
+ --**************************************** Fin de Triggers ********************------------------------
